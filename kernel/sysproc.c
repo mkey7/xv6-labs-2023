@@ -5,6 +5,10 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
+
+uint64 collect_freem();
+uint64 collect_npro();
 
 uint64
 sys_exit(void)
@@ -90,4 +94,35 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// sys_trace
+uint64
+sys_trace(void)
+{
+  int mask;
+  argint(0, &mask);
+
+// 添加一个变量默认为零，如果有输入则保存在一个变量中，syscall在每次调用的过程中对变量进行检查，如果调用和变量数值相同，则打出相关调用
+  
+  struct proc *p = myproc();
+  p->trace = mask;
+  return 0;
+}
+
+uint64
+sys_sysinfo(void)
+{
+  struct sysinfo s;
+  struct proc *p = myproc();
+
+  uint64 userSpace; // user pointer to array of two integers
+  argaddr(0, &userSpace);
+
+  s.freemem = collect_freem();
+  s.nproc = collect_npro();
+
+  copyout(p->pagetable, userSpace, (char*)&s, sizeof(s));
+
+  return 0;
 }
