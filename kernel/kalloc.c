@@ -48,15 +48,16 @@ kfree(void *pa)
 {
   struct run *r;
 
+  // 对传入的物理地址进行分析与判断，出错则报错
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
-  r = (struct run*)pa;
+  r = (struct run*)pa;  // 强制类型转换
 
-  acquire(&kmem.lock);
+  acquire(&kmem.lock);      // 将释放的地址块加入空闲链表中
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);

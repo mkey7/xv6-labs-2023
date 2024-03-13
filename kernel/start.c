@@ -8,6 +8,7 @@ void main();
 void timerinit();
 
 // entry.S needs one stack per CPU.
+// stack0 数组被定义为一个具有 4096 * NCPU 个字符的数组，并且它的内存对齐方式被设置为 16 字节。
 __attribute__ ((aligned (16))) char stack0[4096 * NCPU];
 
 // a scratch area per CPU for machine-mode timer interrupts.
@@ -21,16 +22,16 @@ void
 start()
 {
   // set M Previous Privilege mode to Supervisor, for mret.
-  unsigned long x = r_mstatus();
-  x &= ~MSTATUS_MPP_MASK;
-  x |= MSTATUS_MPP_S;
-  w_mstatus(x);
+  unsigned long x = r_mstatus();    // 读取Mstatus寄存器的值
+  x &= ~MSTATUS_MPP_MASK;           // 清楚MSTATUS_MPP_MASK
+  x |= MSTATUS_MPP_S;               // 将MSTATUS_MPP_S设置为1
+  w_mstatus(x);                     // 更新Mstatus寄存器
 
   // set M Exception Program Counter to main, for mret.
   // requires gcc -mcmodel=medany
-  w_mepc((uint64)main);
+  w_mepc((uint64)main);     // 把main的函数地址写入mepc
 
-  // disable paging for now.
+  // disable paging for now. 禁用虚拟地址
   w_satp(0);
 
   // delegate all interrupts and exceptions to supervisor mode.
@@ -43,14 +44,14 @@ start()
   w_pmpaddr0(0x3fffffffffffffull);
   w_pmpcfg0(0xf);
 
-  // ask for clock interrupts.
+  // ask for clock interrupts.  启动时间中断
   timerinit();
 
   // keep each CPU's hartid in its tp register, for cpuid().
   int id = r_mhartid();
   w_tp(id);
 
-  // switch to supervisor mode and jump to main().
+  // switch to supervisor mode and jump to main(). 调用mert函数，根据返回地址的设置，pc设置为main函数的起始地址，开始执行main
   asm volatile("mret");
 }
 

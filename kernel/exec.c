@@ -29,7 +29,7 @@ exec(char *path, char **argv)
   struct inode *ip;
   struct proghdr ph;
   pagetable_t pagetable = 0, oldpagetable;
-  struct proc *p = myproc();
+  struct proc *p = myproc();    // 获取当前进程的proc结构体指针
 
   begin_op();
 
@@ -50,6 +50,7 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
+  // 通过循环遍历 ELF 文件的程序头部表，将每个可加载的程序段加载到内存中。首先读取程序头部信息到 ph 变量中，然后进行一系列的检查，例如检查程序段的类型是否为 ELF_PROG_LOAD，检查内存大小是否大于文件大小等。接下来，调用 uvmalloc 函数为程序段分配虚拟内存，并将程序段从文件中加载到内存中。
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -62,7 +63,7 @@ exec(char *path, char **argv)
     if(ph.vaddr % PGSIZE != 0)
       goto bad;
     uint64 sz1;
-    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
+    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)    // 为程序段分配虚拟内存
       goto bad;
     sz = sz1;
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
@@ -72,6 +73,7 @@ exec(char *path, char **argv)
   end_op();
   ip = 0;
 
+  // 更新进程的用户栈
   p = myproc();
   uint64 oldsz = p->sz;
 
@@ -80,12 +82,12 @@ exec(char *path, char **argv)
   // Use the second as the user stack.
   sz = PGROUNDUP(sz);
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
+  if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)      // 为用户栈分配虚拟内存
     goto bad;
   sz = sz1;
   uvmclear(pagetable, sz-2*PGSIZE);
-  sp = sz;
-  stackbase = sp - PGSIZE;
+  sp = sz;      // 栈顶指针
+  stackbase = sp - PGSIZE;    // 栈底指针
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
@@ -121,6 +123,7 @@ exec(char *path, char **argv)
   safestrcpy(p->name, last, sizeof(p->name));
     
   // Commit to the user image.
+  // 将新的页表、进程大小、初始程序计数器和初始栈指针设置到进程的相应字段中。同时，释放旧的页表和旧的进程大小。
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;
   p->sz = sz;
